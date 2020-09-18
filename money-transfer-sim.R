@@ -1,3 +1,5 @@
+# inspiration: http://physics.umd.edu/~yakovenk/econophysics/animation.html
+
 # players: number of players in game
 # rounds: number of rounds of play to simulate
 # start_money: how much each player starts with
