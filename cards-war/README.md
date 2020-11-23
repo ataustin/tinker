@@ -23,18 +23,18 @@ Collect all the cards from your opponent.
   compared as before, and the winner (high card) takes all the cards in play.
 * All ties trigger tie-breakers in the same way, including ties occurring while in a
   tie-breaking round.  (See the single exception in next bullet.)
-* *Arbitrary rule for simulation*: If there is a tie and one player doesn't have
+* **Arbitrary rule for simulation**: If there is a tie and one player doesn't have
   enough cards left for a full layout of 5 cards (1 face up (the tie), 3 face down, 1 face up),
   then both parties play as many cards as the _smaller  hand_ can play, with the
   last card turned face up for comparison.  A tie here ends the game in favor of
   the player with the larger hand.  Everyone will be relieved the game is over.
-* *Arbitrary rule for simulation*: when cards are placed at the bottom of the
+* **Arbitrary rule for simulation**: when cards are placed at the bottom of the
   winner's deck, the winning cards go _below_ the losing cards so that
   those losing cards are played before the winning cards.
 
 
 ## Files
 
-View the simulation code [here](https://github.com/ataustin/tinker/cards-war/war.R).
+View the simulation code [here](https://github.com/ataustin/tinker/blob/master/cards-war/war.R).
 
-View a study of the game [here](https://github.com/pages/ataustin/tinker/cards-war/simulation.html).
+View the results of some simulations [here](https://ataustin.github.io/tinker/cards-war/simulation.html).
