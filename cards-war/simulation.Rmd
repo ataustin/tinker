@@ -1,0 +1,160 @@
+---
+title: A Study of War
+author: Adam Austin
+output: html_document
+---
+
+```{r setup, include = FALSE}
+library(rprojroot)
+library(parallel)
+library(ggplot2)
+library(bench)
+library(tidyr)
+
+root_dir <- find_root(has_dir(".git"))
+war_file <- file.path(root_dir, "cards-war", "war.R")
+
+source(war_file)
+
+low_round_threshold <- 10
+
+set.seed(20201124)
+```
+
+
+## Playing the game
+
+To simulate a game, we choose the number of ranks and suits in our deck
+(the default is 13 ranks and 4 suits, as in a standard 52-card deck).
+
+The output is the number of rounds played in that game (_i.e._ the number of
+times cards are collected by one player) and the overall winner of that game.
+
+```{r playing}
+simulate_game(ranks = 13, suits = 4)
+```
+
+The game can easily take an hour or more when playing in real life.  In this
+simulation, it takes milliseconds.
+
+```{r timing}
+benchmark <- mark(simulate_game(), iterations = 1000)
+plot(benchmark)
+```
+
+## Statistics of multiple games
+
+We simulate many games and examine the distribution of winners and rounds per game.
+
+```{r simulate}
+games <- mclapply(1:10000, function(x) simulate_game(), mc.cores = detectCores() - 1)
+games_data <- do.call(rbind, games)
+head(games_data)
+```
+
+
+### How many rounds does it take to end the game?
+
+```{r round-count, echo = FALSE, warning = FALSE, message = FALSE}
+ggplot(games_data, aes(x = round_count)) +
+  geom_histogram() +
+  labs(x = "rounds played in a game", y = "count") +
+  theme_minimal(base_size = 14) +
+  theme(panel.grid.minor.x = element_blank()) +
+  scale_x_continuous(breaks = seq(0, max(games_data$round_count), by = 100))
+```
+
+
+Some games are over in very few rounds.  What do players' starting hands looks like, after
+distributing the cards, when the game only lasts `r low_round_threshold` rounds?
+
+A deck is represented as a sampled ("shuffled") vector of integers standing
+for the card ranks (2 through Ace are stored as 1 through 13), with repeating
+ranks for the suits (e.g. there are 4 copies of rank 10).
+
+```{r low-round-threshold, echo = FALSE}
+round_count <- 9999
+while(round_count > low_round_threshold) {
+  deck <- shuffle_deck()
+  player_hands <- deal_player_hands(deck)
+  n_rounds <- 0
+  
+  while (at_least_one_card_in(player_hands)) {
+    player_hands <- play_round(deck, player_hands)
+    n_rounds <- n_rounds + 1
+  }
+
+  round_count <- n_rounds
+}
+
+player_hands <- deal_player_hands(deck)
+
+cat(paste("This game ended in", round_count, "rounds with player",
+    which.max(lengths(player_hands)), "winning.\n"))
+
+data.frame(player_1 = deck[player_hands$p1],
+           player_2 = deck[player_hands$p2])
+```
+
+
+### What proportion of games does each player win?
+
+```{r winner-prop, echo = FALSE, warning = FALSE}
+ggplot(games_data, aes(x = factor(winner))) +
+  geom_bar(width = 0.5) +
+  labs(x = "winning player", y = "number of games") +
+  theme_minimal(base_size = 14) +
+  theme(panel.grid.minor.y = element_blank())
+```
+
+
+## How does the type of deck influence the game's length?
+
+A standard deck has 13 ranks with 4 suits each.  As a useless thought exercise,
+what if we vary this?  How does it affect the median game length (in number of
+rounds)?  Here we simulate 200 games with each combination of ranks and suits.
+
+(Note: the total number of cards must be even.)
+
+```{r deck-type, echo = FALSE}
+ranks <- seq(8, 18, by = 2)
+suits <- 2:6
+
+trials <- setNames(expand.grid(ranks, suits), nm = c("ranks", "suits"))
+median_rounds <- integer(nrow(trials))
+
+for(i in 1:nrow(trials)) {
+  games <- mclapply(1:200,
+                    function(x) simulate_game(ranks = trials$ranks[i], suits = trials$suits[i]),
+                    mc.cores = detectCores() - 1)
+  games_data <- do.call(rbind, games)
+  median_rounds[i] <- as.integer(median(games_data$round_count))
+  rm(games, games_data)
+  gc()
+}
+
+trials$median_rounds <- median_rounds
+trials$card_count <- trials$ranks * trials$suits
+trials$rounds_per_card <- trials$median_rounds / trials$card_count
+
+ggplot(trials, aes(x = suits, y = ranks, fill = median_rounds)) +
+  geom_tile() +
+  scale_fill_continuous(type = "viridis", name = "median\nrounds") +
+  labs(x = "number of suits", y = "number of ranks") +
+  scale_y_continuous(breaks = ranks) +
+  theme_minimal(base_size = 14) +
+  theme(panel.grid = element_blank())
+```
+
+
+What if we normalize the round count by the number of cards in the deck?
+
+```{r deck-type-normalized, echo = FALSE}
+ggplot(trials, aes(x = suits, y = ranks, fill = rounds_per_card)) +
+  geom_tile() +
+  scale_fill_continuous(type = "viridis", name = "median\nrounds\nper card") +
+  labs(x = "number of suits", y = "number of ranks") +
+  scale_y_continuous(breaks = ranks) +
+  theme_minimal(base_size = 14) +
+  theme(panel.grid = element_blank())
+```
